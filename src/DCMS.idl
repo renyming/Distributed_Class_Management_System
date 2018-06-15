@@ -1,0 +1,13 @@
+module DCMSApp
+{
+    interface DCMS
+    {
+        string sayHello();
+        string createTRecord (in string remoteInput, in string managerID);
+        string createSRecord (in string remoteInput, in string managerID);
+        string editRecord (in string remoteInput, in string managerID);
+        string getRecordCounts (in string managerID);
+        string transferRecord (in string remoteInput, in string managerID);
+        oneway void shutdown();
+    };
+};
