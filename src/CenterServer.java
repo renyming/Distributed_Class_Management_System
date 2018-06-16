@@ -8,6 +8,9 @@ import java.util.logging.SimpleFormatter;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.logging.Logger;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.DateTimeException;
 
 //The package containing our stubs
 import DCMSApp.*;
@@ -71,7 +74,12 @@ public class CenterServer extends DCMSPOA {
     }
 
     private String getTRecordID(String loc) {
-        String newID = loc + "TR" + Integer.toString(++TID);
+        String newID = loc.toUpperCase() + "TR" + Integer.toString(++TID);
+        return newID;
+    }
+
+    private String getSRecordID(String loc) {
+        String newID = loc.toUpperCase() + "SR" + Integer.toString(++SID);
         return newID;
     }
 
@@ -130,8 +138,56 @@ public class CenterServer extends DCMSPOA {
     }
 
     public String createSRecord(String remoteInput, String managerID) {
-        System.out.println("createSRecord called.");
-        return "create student record";
+        logger.info("["+managerID+"] is creating new student record");
+        String info;
+
+        // validate input string from client
+        Pattern p = Pattern.compile("^([a-zA-Z]+);([a-zA-Z]+);([a-zA-Z,\\s]+);(active|inactive);(\\d{8})$");
+        Matcher m = p.matcher(remoteInput);
+        // return error info to client if invalid
+        if (!m.matches()) {
+            info= "Input error, operation failed!";
+            logger.warning("["+managerID+"] "+info);
+            return info;
+        }
+
+        // proceeds if valid
+        String firstName, lastName, courseRegistered;
+        Student.Status status;
+        LocalDate statusDate;
+
+        // extract data fileds from regex groups
+        firstName = m.group(1);
+        lastName = m.group(2);
+        courseRegistered = m.group(3);
+        if (m.group(4).equals("active"))
+            status = Student.Status.active;
+        else
+            status = Student.Status.inactive;
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+        try {
+            statusDate = LocalDate.parse(m.group(5), formatter);
+        } catch (DateTimeException e) {
+            info="Date is invalid, operation failed!";
+            logger.warning("["+managerID+"] "+info);
+            return info;
+        }
+
+        String loc = managerID.substring(0,2);
+        String recordID = getSRecordID(loc); // center server assigned
+        char keyLastName = lastName.toLowerCase().charAt(0);
+
+        ArrayList<String> recordIDsByNameList = nameRecordIDTable.get(keyLastName);
+        recordIDsByNameList.add(recordID);
+
+        // replace the list in hash map
+        nameRecordIDTable.put(keyLastName, recordIDsByNameList);
+        // <key, value> = (recordID, StudentRecordObj)
+        Student sObj = new Student(firstName, lastName, courseRegistered, status, statusDate, recordID);
+        recordIDRecordTable.put(recordID, sObj);
+        info="Student record added successfully. Record ID: " + recordID;
+        logger.info("["+managerID+"] "+info);
+        return info;
     }
 
     public String editRecord(String remoteInput, String managerID) {
