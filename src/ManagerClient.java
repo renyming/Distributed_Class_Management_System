@@ -29,7 +29,7 @@ public class ManagerClient
             DCMSImpl.createTRecord("remoteInputStr","managerIDStr");
             DCMSImpl.createSRecord("remoteInputStr","managerIDStr");
             DCMSImpl.editRecord("remoteInputStr","managerIDStr");
-            DCMSImpl.getRecordCounts("managerIDStr");
+            System.out.println(DCMSImpl.getRecordCounts("managerIDStr"));
             DCMSImpl.transferRecord("remoteInputStr","managerIDStr");
             DCMSImpl.shutdown();
 
