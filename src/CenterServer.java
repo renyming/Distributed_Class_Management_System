@@ -43,6 +43,7 @@ public class CenterServer extends DCMSPOA {
     private int SID;
     private HashMap<Character, ArrayList<String>> nameRecordIDTable;
     private Hashtable<String, Object> recordIDRecordTable;
+    private static Object o = new Object();		//for editRecord operation synchronization
     private FileHandler fh;
 
     //===============Member Methods================
@@ -101,7 +102,7 @@ public class CenterServer extends DCMSPOA {
         String firstName, lastName, address, phone, specialization;
         Teacher.Location location;
 
-        // extract data fileds from regex groups
+        // extract data fields from regex groups
         firstName = m.group(1);
         lastName = m.group(2);
         address = m.group(3);
@@ -156,7 +157,7 @@ public class CenterServer extends DCMSPOA {
         Student.Status status;
         LocalDate statusDate;
 
-        // extract data fileds from regex groups
+        // extract data fields from regex groups
         firstName = m.group(1);
         lastName = m.group(2);
         courseRegistered = m.group(3);
@@ -173,11 +174,13 @@ public class CenterServer extends DCMSPOA {
             return info;
         }
 
-        String loc = managerID.substring(0,2);
+        String loc = managerID.substring(0,3);
         String recordID = getSRecordID(loc); // center server assigned
         char keyLastName = lastName.toLowerCase().charAt(0);
 
         ArrayList<String> recordIDsByNameList = nameRecordIDTable.get(keyLastName);
+        if(recordIDsByNameList == null)
+            recordIDsByNameList = new ArrayList<>();
         recordIDsByNameList.add(recordID);
 
         // replace the list in hash map
@@ -191,8 +194,71 @@ public class CenterServer extends DCMSPOA {
     }
 
     public String editRecord(String remoteInput, String managerID) {
-        System.out.println("editRecord called.");
-        return "edit record";
+        logger.info("["+managerID+"] is editing record");
+        String info = null;
+
+        // validate input string from client
+        Pattern pTeacher = Pattern.compile("^((MTLTR|LVLTR|DDOTR)[1-9]\\d{4});((address);([a-zA-Z0-9.,\\s-]+)|(phone);([0-9]+)|(location);(mtl|lvl|ddo))$");
+        Matcher mTeacher = pTeacher.matcher(remoteInput);
+
+        Pattern pStudent = Pattern.compile("^((MTLSR|LVLSR|DDOSR)[1-9]\\d{4});((courseRegistered);([a-zA-Z0-9,\\s]+)|(status);(active|inactive)|(statusDate);(\\d{8}))$");
+        Matcher mStudent = pStudent.matcher(remoteInput);
+
+        //processed recordID
+        String recordID = "";
+        //processed fieldName, newValue
+        String fieldName=null, newValue=null;
+
+        if (mTeacher.matches()){
+            for (int i=4;i<=9;i+=2){
+                if (mTeacher.start(i)!=-1){
+                    recordID=mTeacher.group(1);
+                    fieldName=mTeacher.group(i);
+                    newValue=mTeacher.group(i+1);
+                    break;
+                }
+                logger.info("["+managerID+"] "+"Input info has been validated as Teacher record. Waiting to update...");
+            }
+        } else if (mStudent.matches()){
+            for (int i=4;i<=9;i+=2){
+                if (mStudent.start(i)!=-1){
+                    recordID=mStudent.group(1);
+                    fieldName=mStudent.group(i);
+                    newValue=mStudent.group(i+1);
+                    break;
+                }
+                logger.info("["+managerID+"] "+"Input info has been validated as Student record. Waiting to update...");
+            }
+        } else {
+            info="["+managerID+"] "+"Input info is invalid! Please try again.";
+            logger.warning(info);
+            return info;
+        }
+
+        synchronized (o){
+            Object record = recordIDRecordTable.get(recordID);
+            if(record == null){
+                info="["+managerID+"] "+" Found no record associated with "+recordID+".";
+            }else{
+                if(record instanceof Teacher) {
+//				logger.info(managerID+" is editing teacher record");
+                    Teacher tRecord = (Teacher)record;
+                    tRecord.setField(fieldName, newValue);
+                    Object obj = tRecord;
+                    recordIDRecordTable.put(recordID,obj);
+                }else if(record instanceof Student) {
+//				logger.info(managerID+" is editing student record");
+                    Student sRecord = (Student)record;
+                    sRecord.setField(fieldName, newValue);
+                    Object obj = sRecord;
+                    recordIDRecordTable.put(recordID,obj);
+                }
+                info="["+managerID+"] "+" Updated "+recordID+" successfully.";
+            }
+        }
+
+        logger.info(info);
+        return info;
     }
 
     public String getRecordCounts(String managerID) {
