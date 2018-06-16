@@ -1,8 +1,6 @@
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.lang.Object;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
 import java.util.*;
 import java.net.InetAddress;
 import java.util.logging.FileHandler;
@@ -55,7 +53,7 @@ public class CenterServer extends DCMSPOA {
         //setup logger
         logger = Logger.getLogger(serverName[serverIdx]);
         try {
-            fh = new FileHandler(serverName[serverIdx] + ".log");
+            fh = new FileHandler(serverName + ".log");
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -78,8 +76,57 @@ public class CenterServer extends DCMSPOA {
     }
 
     public String createTRecord(String remoteInput, String managerID) {
-        System.out.println("createTRecord called.");
-        return "create teacher record";
+        logger.info("["+managerID+"] is creating new teacher record");
+        String info;
+        // validate input string from client
+        Pattern p = Pattern
+                .compile("^([a-zA-Z]+);([a-zA-Z]+);([a-zA-Z0-9.,\\s-]+);([0-9]+);([a-zA-Z,\\s]+);(mtl|lvl|ddo)$");
+        Matcher m = p.matcher(remoteInput);
+        // return error info to client if invalid
+        if (!m.matches()) {
+            info= "Input error, operation failed!";
+            logger.warning("["+managerID+"] "+info);
+            return info;
+        }
+
+        // proceeds if valid
+        String firstName, lastName, address, phone, specialization;
+        Teacher.Location location;
+
+        // extract data fileds from regex groups
+        firstName = m.group(1);
+        lastName = m.group(2);
+        address = m.group(3);
+        phone = m.group(4);
+        specialization = m.group(5);
+
+        String loc = m.group(6);
+        if (loc.equals("mtl"))
+            location = Teacher.Location.mtl;
+        else if (loc.equals("lvl"))
+            location = Teacher.Location.lvl;
+        else
+            location = Teacher.Location.ddo;
+
+        // <key, value> = (lastName, RecordIDsList)
+        String recordID = getTRecordID(loc); // center repo server assigned
+        char keyLastName = lastName.toLowerCase().charAt(0);
+
+        ArrayList<String> recordIDsByNameList = nameRecordIDTable.get(keyLastName);
+        if (recordIDsByNameList == null) {
+            recordIDsByNameList = new ArrayList<String>();
+        }
+        recordIDsByNameList.add(recordID);
+
+        // replace the list in hash map
+        nameRecordIDTable.put(keyLastName, recordIDsByNameList);
+
+        // <key, value> = (recordID, TeacherRecordObj)
+        Teacher tObj = new Teacher(firstName, lastName, address, phone, specialization, location, recordID);
+        recordIDRecordTable.put(recordID, tObj);
+        info="Teacher record added successfully. Record ID: " + recordID;
+        logger.info("["+managerID+"] "+info);
+        return info;
     }
 
     public String createSRecord(String remoteInput, String managerID) {
@@ -92,51 +139,79 @@ public class CenterServer extends DCMSPOA {
         return "edit record";
     }
 
-    protected int getSize() {
-        return recordIDRecordTable.size();
-    }
-
     public String getRecordCounts(String managerID) {
-        logger.info("Received record counts query from " + managerID);
-        String info = "";
-
-        int cnt[] = {-1, -1, -1};
-        cnt[idx] = getSize();
-
-        DatagramSocket socket = null;
-
-        try {
-            socket = new DatagramSocket();
-            byte[] buf = new byte[256];
-            byte[] request = "getSize".getBytes();
-
-            for (int i = 0; i < 3; ++i) {
-                if (cnt[i] == -1) {
-                    DatagramPacket packet = new DatagramPacket(request, request.length, IP[i], port[i]);
-                    socket.send(packet);
-
-                    packet = new DatagramPacket(buf, buf.length);
-                    socket.receive(packet);
-
-                    cnt[i] = Integer.parseInt((new String(packet.getData(), 0, packet.getLength())));
-                }
-            }
-
-            info = "MTL " + Integer.toString(cnt[0]) + ", LVL " + Integer.toString(cnt[1]) + ", DDO "
-                    + Integer.toString(cnt[2]);
-            logger.info("[" + managerID + "] " + info);
-            return info;
-
-        } catch (IOException e) {
-            logger.severe(e.toString());
-        } finally {
-            if (socket != null)
-                socket.close();
-        }
-
-        info = "Error when trying to obtain record counts info";
-        logger.severe("[" + managerID + "] " + info);
-        return info;
+//        logger.info("Received record counts query from "+managerID);
+//        String info="";
+//
+//        int cnt[]={-1,-1,-1};
+//
+//        if (MTLPort < 0 || LVLPort < 0 || DDOPort < 0) {
+//            try {
+//                getPortsIP();
+//            } catch (UnknownHostException e) {
+//                logger.severe("["+managerID+"] Cannot get UDP ports from central repository");
+//            }
+//        }
+//
+//        if (serverName.equals("MTL"))
+//            MTLCnt = getSize();
+//        else if (serverName.equals("LVL"))
+//            LVLCnt = getSize();
+//        else if (serverName.equals("DDO"))
+//            DDOCnt = getSize();
+//        DatagramSocket socket = null;
+//
+//        try {
+//            socket = new DatagramSocket();
+//            byte[] buf = new byte[256];
+//            byte[] request = "getSize".getBytes();
+//
+//            if (MTLCnt == -1) {
+//                DatagramPacket packet = new DatagramPacket(request, request.length, MTLIP, MTLPort);
+//                socket.send(packet);
+//
+//                packet = new DatagramPacket(buf, buf.length);
+//                socket.receive(packet);
+//
+//                MTLCnt = Integer.parseInt((new String(packet.getData(), 0, packet.getLength())));
+//            }
+//
+//            if (LVLCnt == -1) {
+//                DatagramPacket packet = new DatagramPacket(request, request.length, LVLIP, LVLPort);
+//                socket.send(packet);
+//
+//                packet = new DatagramPacket(buf, buf.length);
+//                socket.receive(packet);
+//
+//                LVLCnt = Integer.parseInt((new String(packet.getData(), 0, packet.getLength())));
+//            }
+//
+//            if (DDOCnt == -1) {
+//                DatagramPacket packet = new DatagramPacket(request, request.length, DDOIP, DDOPort);
+//                socket.send(packet);
+//
+//                packet = new DatagramPacket(buf, buf.length);
+//                socket.receive(packet);
+//
+//                DDOCnt = Integer.parseInt((new String(packet.getData(), 0, packet.getLength())));
+//            }
+//
+//            info= "MTL " + Integer.toString(MTLCnt) + ", LVL " + Integer.toString(LVLCnt) + ", DDO "
+//                    + Integer.toString(DDOCnt);
+//            logger.info("["+managerID+"] "+info);
+//            return info;
+//
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        } finally {
+//            if (socket != null)
+//                socket.close();
+//        }
+//
+//        info= "Error when trying to obtain record counts info";
+//        logger.info("["+managerID+"] "+info);
+//        return info;
+        return "abcd";
     }
 
     public String transferRecord(String remoteInput, String managerID) {
@@ -156,15 +231,14 @@ public class CenterServer extends DCMSPOA {
         try {
             fin = new FileInputStream(confPath);
             configFile.load(fin);
-            String info = "Initialize IP info from configuration:"+System.lineSeparator();
             for (int i = 0; i < 3; ++i) {
                 IP[i] = InetAddress.getByName(configFile.getProperty(serverName[i]));
                 InetAddress localhost = InetAddress.getLocalHost();
                 if (IP[i].equals(localhost))
                     IP[i] = InetAddress.getLoopbackAddress();
-                info += serverName[i] + " host: " + IP[i] + System.lineSeparator();
+                //TODO:replace with logger
+                logger.info(serverName[i] + " host: " + IP[i]);
             }
-            logger.info(info);
         } catch (IOException ex) {
             ex.printStackTrace();
         } finally {
@@ -181,6 +255,7 @@ public class CenterServer extends DCMSPOA {
     public static void main(String[] args) {
 
         //choose server location
+        Boolean valid = false;
         String userInput = null;
         System.out.println("Please choose location of this center server: 1.MTL; 2.LVL; 3.DDO;");
         Scanner input = new Scanner(System.in);
@@ -218,15 +293,14 @@ public class CenterServer extends DCMSPOA {
             NameComponent path[] = ncRef.to_name(name);
             ncRef.rebind(path, href);
 
-            server.getConf("server.conf");
-            new UDPListener(server, port[server.idx]).start();
-            server.logger.info("UDP socket listening on port: " + port[server.idx]);
-            server.logger.info("Run as " + serverName[server.idx] + ", waiting for client...");
+            System.out.println("Distributed Server ready and waiting ...");
             // wait for invocations from clients
             orb.run();
         } catch (Exception e) {
             server.logger.severe("ERROR: " + e.toString());
         }
+        server.logger.info("Run as " + serverName[server.idx]);
+        server.getConf("server.conf");
 
     }
 }
