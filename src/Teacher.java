@@ -25,6 +25,7 @@ public class Teacher {
     public String getID(){
         return this.recordID;
     }
+    public String getLastName(){ return this.lastName; }
 
     public void setField(String fieldName, String newValue) {
         if(fieldName == "address") {

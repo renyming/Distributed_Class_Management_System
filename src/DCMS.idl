@@ -8,6 +8,7 @@ module DCMSApp
         string editRecord (in string remoteInput, in string managerID);
         string getRecordCounts (in string managerID);
         string transferRecord (in string remoteInput, in string managerID);
+        string acceptTransferredRecord(in string remoteInput, in string managerID);
         oneway void shutdown();
     };
 };

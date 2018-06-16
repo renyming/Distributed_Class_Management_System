@@ -85,7 +85,7 @@ public class ManagerClient
                 while (!valid) {
                     printMenu();
                     userInput = input.nextLine();
-                    Pattern p = Pattern.compile("^[1-5]$");
+                    Pattern p = Pattern.compile("^[1-6]$");
                     Matcher m = p.matcher(userInput);
                     if (m.matches()) {
                         option = Integer.parseInt(userInput);
@@ -110,8 +110,12 @@ public class ManagerClient
                     client.logger.info(client.DCMSImpl.getRecordCounts(client.managerID));
                 } else if (option == 4) {
                     System.out.println("Enter the following info: record ID;field name;new value");
-                    String inputString=input.nextLine();
+                    String inputString = input.nextLine();
                     client.logger.info(client.DCMSImpl.editRecord(inputString, client.managerID));
+                } else if(option == 5){
+                    System.out.println("Enter the following info: recordID; Destination(mtl|lvl|ddo)");
+                    String inputString = input.nextLine();
+                    client.logger.info(client.DCMSImpl.transferRecord(inputString, client.managerID));
                 } else {
                     client.logger.info("Exited system");
                     return;
@@ -128,7 +132,7 @@ public class ManagerClient
     private static void printMenu() {
         String info = "=======================================================================\n";
         info += "Please select your option by enter the number before each option: \n";
-        info += "1: Create Teacher Record\n2: Create Student Record\n3: Get Record Counts\n4: Edit Record\n5: Exit";
+        info += "1: Create Teacher Record\n2: Create Student Record\n3: Get Record Counts\n4: Edit Record\n5: Transfer Record\n6: Exit";
         System.out.println(info);
     }
 

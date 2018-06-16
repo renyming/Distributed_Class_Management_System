@@ -24,6 +24,7 @@ public class Student {
     public String getID() {
         return this.recordID;
     }
+    public String getLastName(){ return this.lastName; }
 
     public void setField(String fieldName, String newValue) {
         if(fieldName == "courseRegistered") {
