@@ -363,7 +363,6 @@ public class CenterServer extends DCMSPOA {
 
 
         //remove the record from this current server
-        recordIDRecordTable.remove(recordID);
         char keyLastName = lastName.toLowerCase().charAt(0);
         ArrayList<String> recordIDsByNameList = nameRecordIDTable.get(keyLastName);
         if(recordIDsByNameList != null)
@@ -372,6 +371,7 @@ public class CenterServer extends DCMSPOA {
             // replace the list in hash map
             nameRecordIDTable.put(keyLastName, recordIDsByNameList);
         }
+        recordIDRecordTable.remove(recordID);
 
         info="Record ["+recordID+"] Removed from ["+serverName[idx]+"] successfully.";
         logger.info("["+managerID+"] "+info);
@@ -441,7 +441,7 @@ public class CenterServer extends DCMSPOA {
             }else{
                 status = Student.Status.inactive;
             }
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
             LocalDate statusDate = LocalDate.parse(fieldsArray[6], formatter);
             Student sObj = new Student(firstName, lastName, courseRegistered, status, statusDate, recordID);
             recordObj = sObj;
@@ -458,6 +458,7 @@ public class CenterServer extends DCMSPOA {
         nameRecordIDTable.put(keyLastName, recordIDsByNameList);
         recordIDRecordTable.put(recordID, recordObj);
         info="Record ["+recordID+"] Transferred to Server ["+serverName[idx]+"]successfully.";
+        logger.info(info);
         return info;
     }
 
