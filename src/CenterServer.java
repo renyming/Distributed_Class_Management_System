@@ -44,9 +44,10 @@ public class CenterServer extends DCMSPOA {
     private Logger logger;
     private int TID;
     private int SID;
-    private HashMap<Character, ArrayList<String>> nameRecordIDTable;
-    private Hashtable<String, Object> recordIDRecordTable;
-    private static Object o = new Object();		//for editRecord operation synchronization
+    private HashMap<Character, ArrayList<String>> nameRecordIDTable;    //<first_char_of_last_name, list_of_record_IDs>
+    private Hashtable<String, Object> recordIDRecordTable;              //<record_ID, record_object>
+    private Hashtable<String, String> lockTable;                        //keep track of records that are under modifying
+    private static Object o = new Object();		                        //for editRecord operation synchronization
     private FileHandler fh;
 
     //===============Member Methods================
@@ -330,6 +331,14 @@ public class CenterServer extends DCMSPOA {
         String recordID = m.group(1);
         String loc = m.group(3);
 
+        //===========Concurrently Transferring Same Record Protection===============================
+        String lockedID = lockTable.get(recordID);
+        if(lockedID !=null){
+            info = "Other client is making changes to Record ["+recordID+"], please wait and try again.";
+            logger.warning(info);
+            return info;
+        }
+        //==========================================================================================
         //get record by record ID
         Object record = recordIDRecordTable.get(recordID);
         if(record == null){
