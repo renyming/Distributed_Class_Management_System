@@ -33,9 +33,10 @@ public class UDPListener extends Thread {
                 String request = new String(packet.getData(), 0, packet.getLength());
                 if (request.equals("getSize")) {
                     int size = server.getSize();
+                    int idx=server.getIdx();
                     InetAddress ip = packet.getAddress();
                     int clientPort = packet.getPort();
-                    byte[] replyBytes = Integer.toString(size).getBytes();
+                    byte[] replyBytes = (Integer.toString(idx)+Integer.toString(size)).getBytes();
                     DatagramPacket reply = new DatagramPacket(replyBytes, replyBytes.length, ip, clientPort);
                     socket.send(reply);
                 }

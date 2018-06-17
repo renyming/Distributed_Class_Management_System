@@ -44,10 +44,9 @@ public class CenterServer extends DCMSPOA {
     private Logger logger;
     private int TID;
     private int SID;
-    private HashMap<Character, ArrayList<String>> nameRecordIDTable;    //<first_char_of_last_name, list_of_record_IDs>
-    private Hashtable<String, Object> recordIDRecordTable;              //<record_ID, record_object>
-    private Hashtable<String, String> lockTable;                        //keep track of records that are under modifying
-    private static Object o = new Object();		                        //for editRecord operation synchronization
+    private HashMap<Character, ArrayList<String>> nameRecordIDTable;
+    private Hashtable<String, Object> recordIDRecordTable;
+    private static Object o = new Object();        //for editRecord operation synchronization
     private FileHandler fh;
 
     //===============Member Methods================
@@ -70,6 +69,10 @@ public class CenterServer extends DCMSPOA {
         fh.setFormatter(formatter);
     }
 
+    protected int getIdx() {
+        return idx;
+    }
+
     public void setORB(ORB orb_val) {
         orb = orb_val;
     }
@@ -89,7 +92,7 @@ public class CenterServer extends DCMSPOA {
     }
 
     public String createTRecord(String remoteInput, String managerID) {
-        logger.info("["+managerID+"] is creating new teacher record");
+        logger.info("[" + managerID + "] is creating new teacher record");
         String info;
         // validate input string from client
         Pattern p = Pattern
@@ -97,8 +100,8 @@ public class CenterServer extends DCMSPOA {
         Matcher m = p.matcher(remoteInput);
         // return error info to client if invalid
         if (!m.matches()) {
-            info= "Input error, operation failed!";
-            logger.warning("["+managerID+"] "+info);
+            info = "Input error, operation failed!";
+            logger.warning("[" + managerID + "] " + info);
             return info;
         }
 
@@ -137,13 +140,13 @@ public class CenterServer extends DCMSPOA {
         // <key, value> = (recordID, TeacherRecordObj)
         Teacher tObj = new Teacher(firstName, lastName, address, phone, specialization, location, recordID);
         recordIDRecordTable.put(recordID, tObj);
-        info="Teacher record added successfully. Record ID: " + recordID;
-        logger.info("["+managerID+"] "+info);
+        info = "Teacher record added successfully. Record ID: " + recordID;
+        logger.info("[" + managerID + "] " + info);
         return info;
     }
 
     public String createSRecord(String remoteInput, String managerID) {
-        logger.info("["+managerID+"] is creating new student record");
+        logger.info("[" + managerID + "] is creating new student record");
         String info;
 
         // validate input string from client
@@ -151,8 +154,8 @@ public class CenterServer extends DCMSPOA {
         Matcher m = p.matcher(remoteInput);
         // return error info to client if invalid
         if (!m.matches()) {
-            info= "Input error, operation failed!";
-            logger.warning("["+managerID+"] "+info);
+            info = "Input error, operation failed!";
+            logger.warning("[" + managerID + "] " + info);
             return info;
         }
 
@@ -173,17 +176,17 @@ public class CenterServer extends DCMSPOA {
         try {
             statusDate = LocalDate.parse(m.group(5), formatter);
         } catch (DateTimeException e) {
-            info="Date is invalid, operation failed!";
-            logger.warning("["+managerID+"] "+info);
+            info = "Date is invalid, operation failed!";
+            logger.warning("[" + managerID + "] " + info);
             return info;
         }
 
-        String loc = managerID.substring(0,3);
+        String loc = managerID.substring(0, 3);
         String recordID = getSRecordID(loc); // center server assigned
         char keyLastName = lastName.toLowerCase().charAt(0);
 
         ArrayList<String> recordIDsByNameList = nameRecordIDTable.get(keyLastName);
-        if(recordIDsByNameList == null)
+        if (recordIDsByNameList == null)
             recordIDsByNameList = new ArrayList<>();
         recordIDsByNameList.add(recordID);
 
@@ -192,13 +195,13 @@ public class CenterServer extends DCMSPOA {
         // <key, value> = (recordID, StudentRecordObj)
         Student sObj = new Student(firstName, lastName, courseRegistered, status, statusDate, recordID);
         recordIDRecordTable.put(recordID, sObj);
-        info="Student Record ["+recordID+"] added to Server["+serverName[idx]+"] successfully.";
-        logger.info("["+managerID+"] "+info);
+        info = "Student Record [" + recordID + "] added to Server[" + serverName[idx] + "] successfully.";
+        logger.info("[" + managerID + "] " + info);
         return info;
     }
 
     public String editRecord(String remoteInput, String managerID) {
-        logger.info("["+managerID+"] is editing record");
+        logger.info("[" + managerID + "] is editing record");
         String info = null;
 
         // validate input string from client
@@ -211,53 +214,53 @@ public class CenterServer extends DCMSPOA {
         //processed recordID
         String recordID = "";
         //processed fieldName, newValue
-        String fieldName=null, newValue=null;
+        String fieldName = null, newValue = null;
 
-        if (mTeacher.matches()){
-            for (int i=4;i<=9;i+=2){
-                if (mTeacher.start(i)!=-1){
-                    recordID=mTeacher.group(1);
-                    fieldName=mTeacher.group(i);
-                    newValue=mTeacher.group(i+1);
+        if (mTeacher.matches()) {
+            for (int i = 4; i <= 9; i += 2) {
+                if (mTeacher.start(i) != -1) {
+                    recordID = mTeacher.group(1);
+                    fieldName = mTeacher.group(i);
+                    newValue = mTeacher.group(i + 1);
                     break;
                 }
-                logger.info("["+managerID+"] "+"Input info has been validated as Teacher record. Waiting to update...");
+                logger.info("[" + managerID + "] " + "Input info has been validated as Teacher record. Waiting to update...");
             }
-        } else if (mStudent.matches()){
-            for (int i=4;i<=9;i+=2){
-                if (mStudent.start(i)!=-1){
-                    recordID=mStudent.group(1);
-                    fieldName=mStudent.group(i);
-                    newValue=mStudent.group(i+1);
+        } else if (mStudent.matches()) {
+            for (int i = 4; i <= 9; i += 2) {
+                if (mStudent.start(i) != -1) {
+                    recordID = mStudent.group(1);
+                    fieldName = mStudent.group(i);
+                    newValue = mStudent.group(i + 1);
                     break;
                 }
-                logger.info("["+managerID+"] "+"Input info has been validated as Student record. Waiting to update...");
+                logger.info("[" + managerID + "] " + "Input info has been validated as Student record. Waiting to update...");
             }
         } else {
-            info="["+managerID+"] "+"Input info is invalid! Please try again.";
+            info = "[" + managerID + "] " + "Input info is invalid! Please try again.";
             logger.warning(info);
             return info;
         }
 
-        synchronized (o){
+        synchronized (o) {
             Object record = recordIDRecordTable.get(recordID);
-            if(record == null){
-                info="["+managerID+"] "+" Found no record associated with "+recordID+".";
-            }else{
-                if(record instanceof Teacher) {
+            if (record == null) {
+                info = "[" + managerID + "] " + " Found no record associated with " + recordID + ".";
+            } else {
+                if (record instanceof Teacher) {
 //				logger.info(managerID+" is editing teacher record");
-                    Teacher tRecord = (Teacher)record;
+                    Teacher tRecord = (Teacher) record;
                     tRecord.setField(fieldName, newValue);
                     Object obj = tRecord;
-                    recordIDRecordTable.put(recordID,obj);
-                }else if(record instanceof Student) {
+                    recordIDRecordTable.put(recordID, obj);
+                } else if (record instanceof Student) {
 //				logger.info(managerID+" is editing student record");
-                    Student sRecord = (Student)record;
+                    Student sRecord = (Student) record;
                     sRecord.setField(fieldName, newValue);
                     Object obj = sRecord;
-                    recordIDRecordTable.put(recordID,obj);
+                    recordIDRecordTable.put(recordID, obj);
                 }
-                info="["+managerID+"] "+" Updated "+recordID+" successfully.";
+                info = "[" + managerID + "] " + " Updated " + recordID + " successfully.";
             }
         }
 
@@ -274,25 +277,39 @@ public class CenterServer extends DCMSPOA {
         String info = "";
 
         int cnt[] = {-1, -1, -1};
-        cnt[idx] = getSize();
+//        cnt[idx] = getSize();
 
-        DatagramSocket socket = null;
+        DatagramSocket[] socket = null;
 
         try {
-            socket = new DatagramSocket();
-            byte[] buf = new byte[256];
+            socket = new DatagramSocket[3];
+            byte[][] buf = new byte[3][256];
             byte[] request = "getSize".getBytes();
+            DatagramPacket[] packet = new DatagramPacket[3];
 
+            //construct request packets
             for (int i = 0; i < 3; ++i) {
-                if (cnt[i] == -1) {
-                    DatagramPacket packet = new DatagramPacket(request, request.length, IP[i], port[i]);
-                    socket.send(packet);
+                socket[i] = new DatagramSocket();
+                packet[i] = new DatagramPacket(request, request.length, IP[i], port[i]);
+            }
 
-                    packet = new DatagramPacket(buf, buf.length);
-                    socket.receive(packet);
+            //send requests to other servers concurrently
+            for (int i = 0; i < 3; ++i) {
+                socket[i].send(packet[i]);
+            }
 
-                    cnt[i] = Integer.parseInt((new String(packet.getData(), 0, packet.getLength())));
-                }
+            //receive replying packets
+            for (int i = 0; i < 3; ++i) {
+                packet[i] = new DatagramPacket(buf[i], buf[i].length);
+                socket[i].receive(packet[i]);
+            }
+
+            //extract count info from replaying packets
+            for (int i = 0; i < 3; ++i) {
+                String reply = new String(packet[i].getData(), 0, packet[i].getLength());
+                //identify server index of reply
+                int serverIdx = Integer.parseInt(reply.substring(0, 1));
+                cnt[serverIdx] = Integer.parseInt(reply.substring(1));
             }
 
             info = "MTL " + Integer.toString(cnt[0]) + ", LVL " + Integer.toString(cnt[1]) + ", DDO "
@@ -303,8 +320,10 @@ public class CenterServer extends DCMSPOA {
         } catch (IOException e) {
             logger.severe(e.toString());
         } finally {
-            if (socket != null)
-                socket.close();
+            for (int i = 0; i < 3; ++i) {
+                if (socket[i] != null)
+                    socket[i].close();
+            }
         }
 
         info = "Error when trying to obtain record counts info";
@@ -313,7 +332,7 @@ public class CenterServer extends DCMSPOA {
     }
 
     public String transferRecord(String remoteInput, String managerID) {
-        logger.info("["+managerID+"] is transferring new student record");
+        logger.info("[" + managerID + "] is transferring new student record");
         String info;
 
         // validate input string from client
@@ -322,8 +341,8 @@ public class CenterServer extends DCMSPOA {
 
         // return error info to client if invalid
         if (!m.matches()) {
-            info= "Input error, operation failed!";
-            logger.warning("["+managerID+"] "+info);
+            info = "Input error, operation failed!";
+            logger.warning("[" + managerID + "] " + info);
             return info;
         }
 
@@ -331,62 +350,53 @@ public class CenterServer extends DCMSPOA {
         String recordID = m.group(1);
         String loc = m.group(3);
 
-        //===========Concurrently Transferring Same Record Protection===============================
-        String lockedID = lockTable.get(recordID);
-        if(lockedID !=null){
-            info = "Other client is making changes to Record ["+recordID+"], please wait and try again.";
-            logger.warning(info);
-            return info;
-        }
-        //==========================================================================================
         //get record by record ID
         Object record = recordIDRecordTable.get(recordID);
-        if(record == null){
-            info="["+managerID+"] "+" Found no record associated with "+recordID+".";
+        if (record == null) {
+            info = "[" + managerID + "] " + " Found no record associated with " + recordID + ".";
             return info;
         }
 
         String lastName = "";
         String transferRecordString = "";
-        if(record instanceof Teacher) {
-            Teacher tRecord = (Teacher)record;
+        if (record instanceof Teacher) {
+            Teacher tRecord = (Teacher) record;
             lastName = tRecord.getLastName();
             String firstName = tRecord.getFirstName();
             String address = tRecord.getAddress();
             String phone = tRecord.getPhone();
             String specialization = tRecord.getSpecialization();
             String location = tRecord.getLocation();
-            transferRecordString = "TR;"+recordID+";"+firstName+";"+lastName+";"+address+";"+phone+";"+specialization+";"+location;
+            transferRecordString = "TR;" + recordID + ";" + firstName + ";" + lastName + ";" + address + ";" + phone + ";" + specialization + ";" + location;
 
-        }else if(record instanceof Student) {
-            Student sRecord = (Student)record;
+        } else if (record instanceof Student) {
+            Student sRecord = (Student) record;
             lastName = sRecord.getLastName();
             String firstName = sRecord.getFirstName();
             String courses = sRecord.getCourses();
             String status = sRecord.getStatus();
             String statusDate = sRecord.getStatusDate();
-            transferRecordString = "SR;"+recordID+";"+firstName+";"+lastName+";"+courses+";"+status+";"+statusDate;
+            transferRecordString = "SR;" + recordID + ";" + firstName + ";" + lastName + ";" + courses + ";" + status + ";" + statusDate;
         }
-        info="["+managerID+"] "+" Found "+recordID+" to transfer successfully.";
+        info = "[" + managerID + "] " + " Found " + recordID + " to transfer successfully.";
         logger.info(info);
 
 
         //remove the record from this current server
+        recordIDRecordTable.remove(recordID);
         char keyLastName = lastName.toLowerCase().charAt(0);
         ArrayList<String> recordIDsByNameList = nameRecordIDTable.get(keyLastName);
-        if(recordIDsByNameList != null)
-        {
+        if (recordIDsByNameList != null) {
             recordIDsByNameList.remove(recordID);
             // replace the list in hash map
             nameRecordIDTable.put(keyLastName, recordIDsByNameList);
         }
-        recordIDRecordTable.remove(recordID);
 
-        info="Record ["+recordID+"] Removed from ["+serverName[idx]+"] successfully.";
-        logger.info("["+managerID+"] "+info);
+        info = "Record [" + recordID + "] Removed from [" + serverName[idx] + "] successfully.";
+        logger.info("[" + managerID + "] " + info);
 
         //process the record to be transferred to another server
-        try{
+        try {
             // create and initialize the ORB
             //ORB orb = ORB.init();
 
@@ -398,11 +408,11 @@ public class CenterServer extends DCMSPOA {
 
             // resolve the Object Reference in Naming
             int index;
-            if(loc.equals("mtl")){
+            if (loc.equals("mtl")) {
                 index = 0;
-            }else if(loc.equals("lvl")){
+            } else if (loc.equals("lvl")) {
                 index = 1;
-            }else{
+            } else {
                 index = 2;
             }
             String name = serverName[index];
@@ -416,38 +426,38 @@ public class CenterServer extends DCMSPOA {
         return info;
     }
 
-    public String acceptTransferredRecord(String remoteInput, String managerID){
-        String [] fieldsArray = remoteInput.split(";");
-        logger.info("Server ["+serverName[idx]+"] is accepting transferred record ["+fieldsArray[1]+"] sent by Manager ["+managerID+"]");
+    public String acceptTransferredRecord(String remoteInput, String managerID) {
+        String[] fieldsArray = remoteInput.split(";");
+        logger.info("Server [" + serverName[idx] + "] is accepting transferred record [" + fieldsArray[1] + "] sent by Manager [" + managerID + "]");
 
         String info;
         String type = fieldsArray[0];
         String recordID = fieldsArray[1];
         String lastName = fieldsArray[3];
         Object recordObj = null;
-        if(type.equals("TR")){
+        if (type.equals("TR")) {
             //re-construct the Teacher Object
             String firstName = fieldsArray[2];
             String address = fieldsArray[4];
             String phone = fieldsArray[5];
             String specialization = fieldsArray[6];
             Teacher.Location location;
-            if(fieldsArray[7].equals("mtl"))
+            if (fieldsArray[7].equals("mtl"))
                 location = Teacher.Location.mtl;
-            else if(fieldsArray[7].equals("mtl"))
+            else if (fieldsArray[7].equals("mtl"))
                 location = Teacher.Location.lvl;
             else
                 location = Teacher.Location.ddo;
             Teacher tObj = new Teacher(firstName, lastName, address, phone, specialization, location, recordID);
             recordObj = tObj;
-        }else if(type.equals("SR")){
+        } else if (type.equals("SR")) {
             //re-construct the Student Object
             String firstName = fieldsArray[2];
             String courseRegistered = fieldsArray[4];
             Student.Status status;
-            if(fieldsArray[5].equals("active")){
+            if (fieldsArray[5].equals("active")) {
                 status = Student.Status.active;
-            }else{
+            } else {
                 status = Student.Status.inactive;
             }
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -466,8 +476,7 @@ public class CenterServer extends DCMSPOA {
         // replace the list in hash map
         nameRecordIDTable.put(keyLastName, recordIDsByNameList);
         recordIDRecordTable.put(recordID, recordObj);
-        info="Record ["+recordID+"] Transferred to Server ["+serverName[idx]+"]successfully.";
-        logger.info(info);
+        info = "Record [" + recordID + "] Transferred to Server [" + serverName[idx] + "] successfully.";
         return info;
     }
 
@@ -483,7 +492,7 @@ public class CenterServer extends DCMSPOA {
         try {
             fin = new FileInputStream(confPath);
             configFile.load(fin);
-            String info = "Initialize IP info from configuration:"+System.lineSeparator();
+            String info = "Initialize IP info from configuration:" + System.lineSeparator();
             for (int i = 0; i < 3; ++i) {
                 IP[i] = InetAddress.getByName(configFile.getProperty(serverName[i]));
                 InetAddress localhost = InetAddress.getLocalHost();

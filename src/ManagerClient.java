@@ -120,7 +120,7 @@ public class ManagerClient
                     client.logger.info("Exited system");
                     return;
                 }
-                Thread.sleep(500);  //prevent print-out info overlap
+                Thread.sleep(200);  //prevent print-out info overlap
             }
 
 
