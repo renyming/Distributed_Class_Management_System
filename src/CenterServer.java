@@ -126,7 +126,7 @@ public class CenterServer extends DCMSPOA {
 
         ArrayList<String> recordIDsByNameList = nameRecordIDTable.get(keyLastName);
         if (recordIDsByNameList == null) {
-            recordIDsByNameList = new ArrayList<String>();
+            recordIDsByNameList = new ArrayList<>();
         }
         recordIDsByNameList.add(recordID);
 
@@ -191,7 +191,7 @@ public class CenterServer extends DCMSPOA {
         // <key, value> = (recordID, StudentRecordObj)
         Student sObj = new Student(firstName, lastName, courseRegistered, status, statusDate, recordID);
         recordIDRecordTable.put(recordID, sObj);
-        info="Student record added successfully. Record ID: " + recordID;
+        info="Student Record ["+recordID+"] added to Server["+serverName[idx]+"] successfully.";
         logger.info("["+managerID+"] "+info);
         return info;
     }
@@ -264,10 +264,6 @@ public class CenterServer extends DCMSPOA {
         return info;
     }
 
-    public String acceptTransferredRecord(String remoteInput, String managerID){
-        return serverName[this.idx];
-    }
-
     protected int getSize() {
         return recordIDRecordTable.size();
     }
@@ -320,8 +316,9 @@ public class CenterServer extends DCMSPOA {
         String info;
 
         // validate input string from client
-        Pattern p = Pattern.compile("^((MTLTR|LVLTR|DDOTR)[1-9]\\d{4});(mtl|lvl|ddo)$");    //MTL12345;ddo
+        Pattern p = Pattern.compile("^((MTLTR|LVLTR|DDOTR|MTLSR|LVLSR|DDOSR)[1-9]\\d{4});(mtl|lvl|ddo)$");    //MTL12345;ddo
         Matcher m = p.matcher(remoteInput);
+
         // return error info to client if invalid
         if (!m.matches()) {
             info= "Input error, operation failed!";
@@ -329,12 +326,9 @@ public class CenterServer extends DCMSPOA {
             return info;
         }
 
-        // proceeds if valid
-        String recordID, loc, lastName = "";
-
-        // extract data fields from regex groups
-        recordID = m.group(1);
-        loc = m.group(3);
+        // proceeds if valid, extract data fields from regex groups
+        String recordID = m.group(1);
+        String loc = m.group(3);
 
         //get record by record ID
         Object record = recordIDRecordTable.get(recordID);
@@ -343,39 +337,52 @@ public class CenterServer extends DCMSPOA {
             return info;
         }
 
+        String lastName = "";
+        String transferRecordString = "";
         if(record instanceof Teacher) {
             Teacher tRecord = (Teacher)record;
             lastName = tRecord.getLastName();
-            record = tRecord;
+            String firstName = tRecord.getFirstName();
+            String address = tRecord.getAddress();
+            String phone = tRecord.getPhone();
+            String specialization = tRecord.getSpecialization();
+            String location = tRecord.getLocation();
+            transferRecordString = "TR;"+recordID+";"+firstName+";"+lastName+";"+address+";"+phone+";"+specialization+";"+location;
+
         }else if(record instanceof Student) {
             Student sRecord = (Student)record;
             lastName = sRecord.getLastName();
-            record = sRecord;
+            String firstName = sRecord.getFirstName();
+            String courses = sRecord.getCourses();
+            String status = sRecord.getStatus();
+            String statusDate = sRecord.getStatusDate();
+            transferRecordString = "SR;"+recordID+";"+firstName+";"+lastName+";"+courses+";"+status+";"+statusDate;
         }
         info="["+managerID+"] "+" Found "+recordID+" to transfer successfully.";
+        logger.info(info);
 
 
         //remove the record from this current server
-//        recordIDRecordTable.remove(recordID);
-//        char keyLastName = lastName.toLowerCase().charAt(0);
-//        ArrayList<String> recordIDsByNameList = nameRecordIDTable.get(keyLastName);
-//        if(recordIDsByNameList != null)
-//            recordIDsByNameList.remove(recordID);
-//        // replace the list in hash map
-//        nameRecordIDTable.put(keyLastName, recordIDsByNameList);
+        recordIDRecordTable.remove(recordID);
+        char keyLastName = lastName.toLowerCase().charAt(0);
+        ArrayList<String> recordIDsByNameList = nameRecordIDTable.get(keyLastName);
+        if(recordIDsByNameList != null)
+        {
+            recordIDsByNameList.remove(recordID);
+            // replace the list in hash map
+            nameRecordIDTable.put(keyLastName, recordIDsByNameList);
+        }
 
-        info="Student record removed successfully. Record ID: " + recordID;
+        info="Record ["+recordID+"] Removed from ["+serverName[idx]+"] successfully.";
         logger.info("["+managerID+"] "+info);
 
-
-
+        //process the record to be transferred to another server
         try{
             // create and initialize the ORB
             //ORB orb = ORB.init();
 
             // get the root naming context
-            org.omg.CORBA.Object objRef =
-                    orb.resolve_initial_references("NameService");
+            org.omg.CORBA.Object objRef = orb.resolve_initial_references("NameService");
             // Use NamingContextExt instead of NamingContext. This is
             // part of the Interoperable naming Service.
             NamingContextExt ncRef = NamingContextExtHelper.narrow(objRef);
@@ -391,16 +398,66 @@ public class CenterServer extends DCMSPOA {
             }
             String name = serverName[index];
             DCMSImpl = DCMSHelper.narrow(ncRef.resolve_str(name));
-            String svName = DCMSImpl.acceptTransferredRecord("remoteinput", managerID);
-            System.out.println("server name: "+svName);
+            info = DCMSImpl.acceptTransferredRecord(transferRecordString, managerID);
+            logger.info(info);
         } catch (Exception e) {
             logger.severe(e.toString());
         }
 
+        return info;
+    }
 
+    public String acceptTransferredRecord(String remoteInput, String managerID){
+        String [] fieldsArray = remoteInput.split(";");
+        logger.info("Server ["+serverName[idx]+"] is accepting transferred record ["+fieldsArray[1]+"] sent by Manager ["+managerID+"]");
 
+        String info;
+        String type = fieldsArray[0];
+        String recordID = fieldsArray[1];
+        String lastName = fieldsArray[3];
+        Object recordObj = null;
+        if(type.equals("TR")){
+            //re-construct the Teacher Object
+            String firstName = fieldsArray[2];
+            String address = fieldsArray[4];
+            String phone = fieldsArray[5];
+            String specialization = fieldsArray[6];
+            Teacher.Location location;
+            if(fieldsArray[7].equals("mtl"))
+                location = Teacher.Location.mtl;
+            else if(fieldsArray[7].equals("mtl"))
+                location = Teacher.Location.lvl;
+            else
+                location = Teacher.Location.ddo;
+            Teacher tObj = new Teacher(firstName, lastName, address, phone, specialization, location, recordID);
+            recordObj = tObj;
+        }else if(type.equals("SR")){
+            //re-construct the Student Object
+            String firstName = fieldsArray[2];
+            String courseRegistered = fieldsArray[4];
+            Student.Status status;
+            if(fieldsArray[5].equals("active")){
+                status = Student.Status.active;
+            }else{
+                status = Student.Status.inactive;
+            }
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+            LocalDate statusDate = LocalDate.parse(fieldsArray[6], formatter);
+            Student sObj = new Student(firstName, lastName, courseRegistered, status, statusDate, recordID);
+            recordObj = sObj;
+        }
 
-
+        //put the transferred Record Object into the hash table
+        char keyLastName = lastName.toLowerCase().charAt(0);
+        ArrayList<String> recordIDsByNameList = nameRecordIDTable.get(keyLastName);
+        if (recordIDsByNameList == null) {
+            recordIDsByNameList = new ArrayList<>();
+        }
+        recordIDsByNameList.add(recordID);
+        // replace the list in hash map
+        nameRecordIDTable.put(keyLastName, recordIDsByNameList);
+        recordIDRecordTable.put(recordID, recordObj);
+        info="Record ["+recordID+"] Transferred to Server ["+serverName[idx]+"]successfully.";
         return info;
     }
 
@@ -451,7 +508,7 @@ public class CenterServer extends DCMSPOA {
             Matcher mServerChoice = pServerChoice.matcher(userInput);
             validInt = mServerChoice.matches();
             if (!validInt)
-                System.out.println("Invalid choice, please input an integer between 1-3 to choose.");
+                System.out.println("Invalid choice, please input an integer between 1-3.");
         }
 
         //CORBA operations

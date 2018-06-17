@@ -21,10 +21,13 @@ public class Student {
         this.recordID = recordID;
     }
 
-    public String getID() {
-        return this.recordID;
-    }
+    public String getID() { return this.recordID; }
     public String getLastName(){ return this.lastName; }
+    public String getFirstName(){ return this.firstName; }
+    public String getCourses(){ return this.courseRegistered; }
+    public String getStatus(){ return this.status.toString(); }
+    public String getStatusDate(){ return this.statusDate.toString(); }
+
 
     public void setField(String fieldName, String newValue) {
         if(fieldName == "courseRegistered") {

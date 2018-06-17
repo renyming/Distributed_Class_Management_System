@@ -26,6 +26,11 @@ public class Teacher {
         return this.recordID;
     }
     public String getLastName(){ return this.lastName; }
+    public String getFirstName(){ return this.firstName; }
+    public String getAddress(){ return this.address; }
+    public String getPhone(){ return this.phone; }
+    public String getSpecialization(){ return this.specialization; }
+    public String getLocation(){ return this.location.toString(); }
 
     public void setField(String fieldName, String newValue) {
         if(fieldName == "address") {
