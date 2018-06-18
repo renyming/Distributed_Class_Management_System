@@ -46,7 +46,8 @@ public class CenterServer extends DCMSPOA {
     private int SID;
     private HashMap<Character, ArrayList<String>> nameRecordIDTable;
     private Hashtable<String, Object> recordIDRecordTable;
-    private static Object o = new Object();        //for editRecord operation synchronization
+    private Hashtable<String, String> lockTable = new Hashtable<>();    //keep track of records that are under modifying
+    private static Object o = new Object();                             //for editRecord operation synchronization
     private FileHandler fh;
 
     //===============Member Methods================
@@ -242,26 +243,42 @@ public class CenterServer extends DCMSPOA {
             return info;
         }
 
-        synchronized (o) {
-            Object record = recordIDRecordTable.get(recordID);
-            if (record == null) {
-                info = "[" + managerID + "] " + " Found no record associated with " + recordID + ".";
-            } else {
-                if (record instanceof Teacher) {
-//				logger.info(managerID+" is editing teacher record");
-                    Teacher tRecord = (Teacher) record;
-                    tRecord.setField(fieldName, newValue);
-                    Object obj = tRecord;
-                    recordIDRecordTable.put(recordID, obj);
-                } else if (record instanceof Student) {
-//				logger.info(managerID+" is editing student record");
-                    Student sRecord = (Student) record;
-                    sRecord.setField(fieldName, newValue);
-                    Object obj = sRecord;
-                    recordIDRecordTable.put(recordID, obj);
-                }
-                info = "[" + managerID + "] " + " Updated " + recordID + " successfully.";
+
+        Object record = recordIDRecordTable.get(recordID);
+        if (record == null) {
+            info = "[" + managerID + "] " + " Found no record associated with " + recordID + ".";
+        } else {
+            Object obj = null;
+            if (record instanceof Teacher) {
+                Teacher tRecord = (Teacher) record;
+                tRecord.setField(fieldName, newValue);
+                obj = tRecord;
+            } else if (record instanceof Student) {
+                Student sRecord = (Student) record;
+                sRecord.setField(fieldName, newValue);
+                obj = sRecord;
             }
+            //==========Check LockTable to see if Other Client Manager is making changes to the Record============
+            synchronized (o){
+                String lockedID = lockTable.get(recordID);
+                if(lockedID != null){
+                    info = "Editing Rejected. Other client manager is modifying record ["+recordID+"]. Please wait and try again later.";
+                    logger.warning(info);
+                    return info;
+                }
+                //lock the recordID
+                lockTable.put(recordID, recordID);
+            }
+            //====================================================================================================
+
+            //edit the record
+            recordIDRecordTable.put(recordID, obj);
+
+            synchronized (o){
+                //release the lock of recordID
+                lockTable.remove(recordID);
+            }
+            info = "[" + managerID + "] " + " Updated " + recordID + " successfully.";
         }
 
         logger.info(info);
@@ -357,6 +374,7 @@ public class CenterServer extends DCMSPOA {
             return info;
         }
 
+
         String lastName = "";
         String transferRecordString = "";
         if (record instanceof Teacher) {
@@ -380,6 +398,21 @@ public class CenterServer extends DCMSPOA {
         }
         info = "[" + managerID + "] " + " Found " + recordID + " to transfer successfully.";
         logger.info(info);
+
+        //==========Check LockTable to see if Other Client Manager is making changes to the Record===============
+        synchronized (o){
+            String lockedID = lockTable.get(recordID);
+            if(lockedID != null){
+                //other client is modifying the record, stop
+                info = "Transferring Rejected. Other client manager is modifying record ["+recordID+"]. Please wait and try again later.";
+                logger.warning(info);
+                return info;
+            }
+            //lock the record ID
+            lockTable.put(recordID, recordID);
+        }
+        //=======================================================================================================
+
 
 
         //remove the record from this current server
@@ -422,6 +455,13 @@ public class CenterServer extends DCMSPOA {
         } catch (Exception e) {
             logger.severe(e.toString());
         }
+
+        //======================================Unlock the Record==============================================
+        synchronized (o){
+            //unlock the recordID
+            lockTable.remove(recordID);
+        }
+        //=====================================================================================================
 
         return info;
     }
