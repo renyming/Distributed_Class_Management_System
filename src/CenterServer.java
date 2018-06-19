@@ -82,19 +82,19 @@ public class CenterServer extends DCMSPOA {
         return "\nHello world !!\n";
     }
 
-    private String getTRecordID(String loc) {
-        String newID = loc.toUpperCase() + "TR" + Integer.toString(++TID);
+    private String getTRecordID() {
+        String newID = serverName[idx] + "TR" + Integer.toString(++TID);
         return newID;
     }
 
-    private String getSRecordID(String loc) {
-        String newID = loc.toUpperCase() + "SR" + Integer.toString(++SID);
+    private String getSRecordID() {
+        String newID = serverName[idx] + "SR" + Integer.toString(++SID);
         return newID;
     }
 
     public String createTRecord(String remoteInput, String managerID) {
-        logger.info("[" + managerID + "] is creating new teacher record");
-        String info;
+        String info = "[" + managerID + "] is creating new teacher record on [" + serverName[idx] + "]";
+        logger.info(info);
         // validate input string from client
         Pattern p = Pattern
                 .compile("^([a-zA-Z]+);([a-zA-Z]+);([a-zA-Z0-9.,\\s-]+);([0-9]+);([a-zA-Z,\\s]+);(mtl|lvl|ddo)$");
@@ -126,7 +126,7 @@ public class CenterServer extends DCMSPOA {
             location = Teacher.Location.ddo;
 
         // <key, value> = (lastName, RecordIDsList)
-        String recordID = getTRecordID(loc); // center repo server assigned
+        String recordID = getTRecordID(); // center repo server assigned
         char keyLastName = lastName.toLowerCase().charAt(0);
 
         ArrayList<String> recordIDsByNameList = nameRecordIDTable.get(keyLastName);
@@ -141,14 +141,14 @@ public class CenterServer extends DCMSPOA {
         // <key, value> = (recordID, TeacherRecordObj)
         Teacher tObj = new Teacher(firstName, lastName, address, phone, specialization, location, recordID);
         recordIDRecordTable.put(recordID, tObj);
-        info = "Teacher record added successfully. Record ID: " + recordID;
-        logger.info("[" + managerID + "] " + info);
+        info = "[" + managerID + "] created new teacher record [" + recordID + "] on [" + serverName[idx] + "] successfully";
+        logger.info(info);
         return info;
     }
 
     public String createSRecord(String remoteInput, String managerID) {
-        logger.info("[" + managerID + "] is creating new student record");
-        String info;
+        String info = "[" + managerID + "] is creating new student record on [" + serverName[idx] + "]";
+        logger.info(info);
 
         // validate input string from client
         Pattern p = Pattern.compile("^([a-zA-Z]+);([a-zA-Z]+);([a-zA-Z,\\s]+);(active|inactive);(\\d{8})$");
@@ -183,7 +183,7 @@ public class CenterServer extends DCMSPOA {
         }
 
         String loc = managerID.substring(0, 3);
-        String recordID = getSRecordID(loc); // center server assigned
+        String recordID = getSRecordID(); // center server assigned
         char keyLastName = lastName.toLowerCase().charAt(0);
 
         ArrayList<String> recordIDsByNameList = nameRecordIDTable.get(keyLastName);
@@ -196,14 +196,14 @@ public class CenterServer extends DCMSPOA {
         // <key, value> = (recordID, StudentRecordObj)
         Student sObj = new Student(firstName, lastName, courseRegistered, status, statusDate, recordID);
         recordIDRecordTable.put(recordID, sObj);
-        info = "Student Record [" + recordID + "] added to Server[" + serverName[idx] + "] successfully.";
-        logger.info("[" + managerID + "] " + info);
+        info = "[" + managerID + "] created new student record [" + recordID + "] on [" + serverName[idx] + "] successfully";
+        logger.info(info);
         return info;
     }
 
     public String editRecord(String remoteInput, String managerID) {
-        logger.info("[" + managerID + "] is editing record");
-        String info = null;
+        String info = "[" + managerID + "] is editing record on [" + serverName[idx] + "]";
+        logger.info(info);
 
         // validate input string from client
         Pattern pTeacher = Pattern.compile("^((MTLTR|LVLTR|DDOTR)[1-9]\\d{4});((address);([a-zA-Z0-9.,\\s-]+)|(phone);([0-9]+)|(location);(mtl|lvl|ddo))$");
@@ -259,10 +259,10 @@ public class CenterServer extends DCMSPOA {
                 obj = sRecord;
             }
             //==========Check LockTable to see if Other Client Manager is making changes to the Record============
-            synchronized (o){
+            synchronized (o) {
                 String lockedID = lockTable.get(recordID);
-                if(lockedID != null){
-                    info = "Editing Rejected. Other client manager is modifying record ["+recordID+"]. Please wait and try again later.";
+                if (lockedID != null) {
+                    info = "[" + managerID + "] " + "editing record [" + recordID + "] Rejected. Other client manager is editing/transferring the record . Please wait and try again later.";
                     logger.warning(info);
                     return info;
                 }
@@ -274,13 +274,12 @@ public class CenterServer extends DCMSPOA {
             //edit the record
             recordIDRecordTable.put(recordID, obj);
 
-            synchronized (o){
+            synchronized (o) {
                 //release the lock of recordID
                 lockTable.remove(recordID);
             }
-            info = "[" + managerID + "] " + " Updated " + recordID + " successfully.";
+            info = "[" + managerID + "] " + " updated record [" + recordID + "] successfully.";
         }
-
         logger.info(info);
         return info;
     }
@@ -290,8 +289,8 @@ public class CenterServer extends DCMSPOA {
     }
 
     public String getRecordCounts(String managerID) {
-        logger.info("Received record counts query from " + managerID);
-        String info = "";
+        String info = "Received record counts query from [" + managerID + "].";
+        logger.info(info);
 
         int cnt[] = {-1, -1, -1};
 //        cnt[idx] = getSize();
@@ -349,8 +348,8 @@ public class CenterServer extends DCMSPOA {
     }
 
     public String transferRecord(String remoteInput, String managerID) {
-        logger.info("[" + managerID + "] is transferring new student record");
-        String info;
+        String info = "[" + managerID + "] started to transfer record";
+        logger.info(info);
 
         // validate input string from client
         Pattern p = Pattern.compile("^((MTLTR|LVLTR|DDOTR|MTLSR|LVLSR|DDOSR)[1-9]\\d{4});(mtl|lvl|ddo)$");    //MTL12345;ddo
@@ -370,7 +369,8 @@ public class CenterServer extends DCMSPOA {
         //get record by record ID
         Object record = recordIDRecordTable.get(recordID);
         if (record == null) {
-            info = "[" + managerID + "] " + " Found no record associated with " + recordID + ".";
+            info = "[" + managerID + "] does not find record [" + recordID + "] on server [" + serverName[idx] + "].";
+            logger.warning(info);
             return info;
         }
 
@@ -396,15 +396,15 @@ public class CenterServer extends DCMSPOA {
             String statusDate = sRecord.getStatusDate();
             transferRecordString = "SR;" + recordID + ";" + firstName + ";" + lastName + ";" + courses + ";" + status + ";" + statusDate;
         }
-        info = "[" + managerID + "] " + " Found " + recordID + " to transfer successfully.";
-        logger.info(info);
+//        info = "[" + managerID + "] " + " Found " + recordID + " to transfer successfully.";
+//        logger.info(info);
 
         //==========Check LockTable to see if Other Client Manager is making changes to the Record===============
-        synchronized (o){
+        synchronized (o) {
             String lockedID = lockTable.get(recordID);
-            if(lockedID != null){
+            if (lockedID != null) {
                 //other client is modifying the record, stop
-                info = "Transferring Rejected. Other client manager is modifying record ["+recordID+"]. Please wait and try again later.";
+                info = "[" + managerID + "] Transferring record ["+ recordID + "] Rejected. Other client manager is editing/transferring the record. Please wait and try again later.";
                 logger.warning(info);
                 return info;
             }
@@ -412,7 +412,6 @@ public class CenterServer extends DCMSPOA {
             lockTable.put(recordID, recordID);
         }
         //=======================================================================================================
-
 
 
         //remove the record from this current server
@@ -425,8 +424,8 @@ public class CenterServer extends DCMSPOA {
             nameRecordIDTable.put(keyLastName, recordIDsByNameList);
         }
 
-        info = "Record [" + recordID + "] Removed from [" + serverName[idx] + "] successfully.";
-        logger.info("[" + managerID + "] " + info);
+//        info = "Record [" + recordID + "] Removed from [" + serverName[idx] + "] successfully.";
+//        logger.info("[" + managerID + "] " + info);
 
         //process the record to be transferred to another server
         try {
@@ -457,7 +456,7 @@ public class CenterServer extends DCMSPOA {
         }
 
         //======================================Unlock the Record==============================================
-        synchronized (o){
+        synchronized (o) {
             //unlock the recordID
             lockTable.remove(recordID);
         }
@@ -516,7 +515,7 @@ public class CenterServer extends DCMSPOA {
         // replace the list in hash map
         nameRecordIDTable.put(keyLastName, recordIDsByNameList);
         recordIDRecordTable.put(recordID, recordObj);
-        info = "Record [" + recordID + "] Transferred to Server [" + serverName[idx] + "] successfully.";
+        info = "[" + managerID + "] transferred record [" + recordID + "] to server [" + serverName[idx] + "] successfully.";
         return info;
     }
 
