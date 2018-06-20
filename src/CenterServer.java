@@ -5,6 +5,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.util.*;
 import java.net.InetAddress;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.FileHandler;
 import java.util.logging.SimpleFormatter;
 import java.util.regex.Matcher;
@@ -83,13 +84,17 @@ public class CenterServer extends DCMSPOA {
     }
 
     private String getTRecordID() {
-        String newID = serverName[idx] + "TR" + Integer.toString(++TID);
-        return newID;
+        synchronized (o) {
+            String newID = serverName[idx] + "TR" + Integer.toString(++TID);
+            return newID;
+        }
     }
 
     private String getSRecordID() {
-        String newID = serverName[idx] + "SR" + Integer.toString(++SID);
-        return newID;
+        synchronized (o) {
+            String newID = serverName[idx] + "SR" + Integer.toString(++SID);
+            return newID;
+        }
     }
 
     public String createTRecord(String remoteInput, String managerID) {
@@ -246,7 +251,7 @@ public class CenterServer extends DCMSPOA {
 
         Object record = recordIDRecordTable.get(recordID);
         if (record == null) {
-            info = "[" + managerID + "] " + " Found no record associated with " + recordID + ".";
+            info = "[" + managerID + "] " + " Editing record [" + recordID + "] Rejected. The record is not found on server [" + serverName[idx] + "]. ";
         } else {
             Object obj = null;
             if (record instanceof Teacher) {
@@ -262,7 +267,7 @@ public class CenterServer extends DCMSPOA {
             synchronized (o) {
                 String lockedID = lockTable.get(recordID);
                 if (lockedID != null) {
-                    info = "[" + managerID + "] " + "editing record [" + recordID + "] Rejected. Other client manager is editing/transferring the record . Please wait and try again later.";
+                    info = "[" + managerID + "] " + "editing record [" + recordID + "] Rejected. Other client manager is editing/transferring the record. Please wait and try again later.";
                     logger.warning(info);
                     return info;
                 }
@@ -273,6 +278,14 @@ public class CenterServer extends DCMSPOA {
 
             //edit the record
             recordIDRecordTable.put(recordID, obj);
+
+
+            //intentionally elapse the edit record method's execution time
+            try {
+                TimeUnit.MILLISECONDS.sleep(80);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
 
             synchronized (o) {
                 //release the lock of recordID
@@ -369,7 +382,7 @@ public class CenterServer extends DCMSPOA {
         //get record by record ID
         Object record = recordIDRecordTable.get(recordID);
         if (record == null) {
-            info = "[" + managerID + "] does not find record [" + recordID + "] on server [" + serverName[idx] + "].";
+            info = "[" + managerID + "] Transferring record [" + recordID + "] Rejected. The record is not found on server [" + serverName[idx] + "].";
             logger.warning(info);
             return info;
         }
@@ -404,7 +417,7 @@ public class CenterServer extends DCMSPOA {
             String lockedID = lockTable.get(recordID);
             if (lockedID != null) {
                 //other client is modifying the record, stop
-                info = "[" + managerID + "] Transferring record ["+ recordID + "] Rejected. Other client manager is editing/transferring the record. Please wait and try again later.";
+                info = "[" + managerID + "] Transferring record [" + recordID + "] Rejected. Other client manager is editing/transferring the record. Please wait and try again later.";
                 logger.warning(info);
                 return info;
             }
@@ -516,6 +529,7 @@ public class CenterServer extends DCMSPOA {
         nameRecordIDTable.put(keyLastName, recordIDsByNameList);
         recordIDRecordTable.put(recordID, recordObj);
         info = "[" + managerID + "] transferred record [" + recordID + "] to server [" + serverName[idx] + "] successfully.";
+        logger.info(info);
         return info;
     }
 
