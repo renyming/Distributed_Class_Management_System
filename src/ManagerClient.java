@@ -132,7 +132,7 @@ public class ManagerClient
 
     private static void printMenu() {
         String info = "=======================================================================\n";
-        info += "Please select your option by enter the number before each option: \n";
+        info += "Please select your option by entering the number before each option: \n";
         info += "1: Create Teacher Record\n2: Create Student Record\n3: Get Record Counts\n4: Edit Record\n5: Transfer Record\n6: Exit";
         System.out.println(info);
     }
