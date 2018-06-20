@@ -86,6 +86,7 @@ public class CenterServer extends DCMSPOA {
     private String getTRecordID() {
         synchronized (o) {
             String newID = serverName[idx] + "TR" + Integer.toString(++TID);
+            lockTable.put(newID, newID);
             return newID;
         }
     }
@@ -93,6 +94,7 @@ public class CenterServer extends DCMSPOA {
     private String getSRecordID() {
         synchronized (o) {
             String newID = serverName[idx] + "SR" + Integer.toString(++SID);
+            lockTable.put(newID, newID);
             return newID;
         }
     }
@@ -146,6 +148,12 @@ public class CenterServer extends DCMSPOA {
         // <key, value> = (recordID, TeacherRecordObj)
         Teacher tObj = new Teacher(firstName, lastName, address, phone, specialization, location, recordID);
         recordIDRecordTable.put(recordID, tObj);
+
+        synchronized (o) {
+            //release the lock of recordID
+            lockTable.remove(recordID);
+        }
+
         info = "[" + managerID + "] created new teacher record [" + recordID + "] on [" + serverName[idx] + "] successfully";
         logger.info(info);
         return info;
@@ -201,6 +209,12 @@ public class CenterServer extends DCMSPOA {
         // <key, value> = (recordID, StudentRecordObj)
         Student sObj = new Student(firstName, lastName, courseRegistered, status, statusDate, recordID);
         recordIDRecordTable.put(recordID, sObj);
+
+        synchronized (o) {
+            //release the lock of recordID
+            lockTable.remove(recordID);
+        }
+
         info = "[" + managerID + "] created new student record [" + recordID + "] on [" + serverName[idx] + "] successfully";
         logger.info(info);
         return info;
@@ -343,7 +357,8 @@ public class CenterServer extends DCMSPOA {
 
             info = "MTL " + Integer.toString(cnt[0]) + ", LVL " + Integer.toString(cnt[1]) + ", DDO "
                     + Integer.toString(cnt[2]);
-            logger.info("[" + managerID + "] " + info);
+            info = "[" + managerID + "]: " + info;
+            logger.info(info);
             return info;
 
         } catch (IOException e) {
@@ -356,7 +371,8 @@ public class CenterServer extends DCMSPOA {
         }
 
         info = "Error when trying to obtain record counts info";
-        logger.severe("[" + managerID + "] " + info);
+        info = "[" + managerID + "] " + info;
+        logger.severe(info);
         return info;
     }
 
